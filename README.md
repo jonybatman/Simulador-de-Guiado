@@ -1,38 +1,39 @@
-# Simulador-de-Guiado
-Simulador de Guiado y Navegación Aeroespacial
+# Simulador de Intercepción (GNC 3-DOF)
 
-🚀 Flight Simulator (3-DOF)
+Este proyecto implementa un motor de simulación para la interceptación de objetivos en un entorno tridimensional, integrando modelos de guiado, navegación y control (GNC) con física aeroespacial.
 
-Este proyecto es un simulador de vuelo técnico que implementa los pilares de GNC (Guidance, Navigation, and Control). Utiliza modelos físicos reales para simular la interceptación de un objetivo mediante algoritmos de navegación proporcional y filtros de estimación.
+## Arquitectura del Sistema
 
-🧠 ¿Qué hace este código?
+El software se divide en tres pilares fundamentales que emulan el funcionamiento de un sistema de defensa real:
 
-El script simula un escenario donde un misil debe alcanzar un blanco móvil. Para lograrlo, el sistema pasa por cuatro etapas constantes:
+### 1. Estimación de Estado: Filtro de Kalman (LKF)
+El módulo TargetEstimator implementa un Filtro de Kalman lineal para procesar mediciones ruidosas de la posición del blanco.
+*   Modelo Cinemático: Utiliza una matriz de transición de estado (F) de velocidad constante.
+*   Proceso de Corrección: El filtro calcula la ganancia de Kalman (K) para balancear la incertidumbre del modelo de predicción frente al ruido del sensor de medición (Radar/Lidar). Esto permite una estimación suave de la trayectoria del objetivo incluso con interferencias.
 
-Navegación (Filtro de Kalman): El misil no "ve" perfectamente al objetivo. El código implementa un Filtro de Kalman que toma mediciones ruidosas de un radar y estima la posición real del blanco, eliminando errores de medición.
+### 2. Ley de Guiado: Navegación Proporcional Pura (PPN)
+La lógica de interceptación se basa en la Navegación Proporcional, una ley de control donde el comando de aceleración es proporcional a la velocidad de rotación de la línea de mira (LOS Rate).
+*   Ecuación de Control: accel_cmd = N * V_speed * LOS_rate, donde N es la constante de navegación (fijada en 4.0).
+*   Restricciones Físicas: El comando de aceleración se proyecta perpendicularmente al vector velocidad y se satura a 25 Gs para respetar los límites estructurales del vehículo (VehicleLimits.G_LIMIT).
 
-Guiado (ProNav): Utiliza Navegación Proporcional Pura (ProNav). Es el algoritmo estándar en la industria aeroespacial que calcula la aceleración necesaria para interceptar un objetivo basándose en el cambio de la línea de mira (Line-of-Sight).
+### 3. Modelo Físico y Aerodinámico
+La simulación resuelve las ecuaciones de movimiento de Newton mediante integración numérica (RK1/Euler):
+*   Variación Atmosférica: Implementa el modelo de densidad del aire basado en la altura de escala (H_scale), donde la densidad (rho) disminuye exponencialmente con la altitud.
+*   Dinámica de Masa: El sistema simula la pérdida de masa del vehículo durante la fase de empuje (Burn Time), afectando directamente la relación Empuje/Peso.
+*   Resistencia Aerodinámica (Drag): Se modela el coeficiente de arrastre (Cd) con una función que aumenta al alcanzar velocidades supersónicas (Mach > 1.0).
 
-Física y Aerodinámica: No es un movimiento lineal simple. El simulador calcula:
+## Validación del Sistema: Análisis de Monte Carlo
 
-Arrastre (Drag): Resistencia del aire basada en la densidad atmosférica (que cambia con la altura) y el efecto de la barrera del sonido (Mach).
-Propulsión: Pérdida de masa de combustible en tiempo real según el empuje del motor.
-Gravedad y Atmósfera: Modelo de densidad exponencial y gravedad estándar.
+Para determinar la fiabilidad del algoritmo, el script ejecuta una campaña de validación estadística:
+1.  Iteraciones: 1000 escenarios con posiciones iniciales del blanco aleatorias.
+2.  Métrica CEP 90: Define el radio del círculo en el que el 90% de los intentos resultan en impacto o aproximación crítica.
+3.  Probabilidad de Intercepción (Pk): Ratio de éxito basado en el umbral de proximidad de la espoleta (Prox Fuse).
 
-Simulación Monte Carlo: Ejecuta cientos de pruebas con variables aleatorias para obtener estadísticas de éxito (Probabilidad de intercepción y error de precisión CEP).
+## Requisitos Técnicos
+*   Python 3.8+
+*   NumPy (para álgebra lineal y operaciones vectoriales)
+*   Standard Library: dataclasses, typing, time.
 
-🛠️ Tecnologías utilizadas
-
-Python 3.x
-
-NumPy: Para todo el cálculo matricial y álgebra lineal del Filtro de Kalman.
-Dataclasses: Para una gestión limpia y profesional de las constantes físicas.
-Tipado estricto (Type Hinting): Código robusto y fácil de leer para otros desarrolladores.
-
-📊 Cómo leer los resultados
-
-Al ejecutarlo, verás un reporte de misión:
-
-Probabilidad de Intercepción: Qué tan efectivo es el algoritmo bajo estrés.
-Miss Distance: La distancia promedio a la que pasó el interceptor del blanco.
-CEP 90: El radio dentro del cual cae el 90% de los intentos (indicador de precisión militar).
+## Ejecución
+Para correr la suite de validación completa:
+python main.py
